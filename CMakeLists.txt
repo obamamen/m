@@ -15,6 +15,7 @@ endif()
 # -------------------------
 add_library(toolbox STATIC
         modules/m/m.c
+        modules/mtest/mtest.c
 )
 
 target_include_directories(toolbox PUBLIC
