@@ -65,7 +65,7 @@ void mbuf_free(mbuf *buf, const m_allocator* a);
 //
 
 mbuf_result mbuf_reserve(mbuf* buf, const m_allocator* a, m_usize min_cap);
-mbuf_result mbuf_shrink(mbuf* buf, const m_allocator* a);
+mbuf_result mbuf_shrink(mbuf* buf, const m_allocator* a, m_usize min_cap);
 mbuf_result mbuf_insert(mbuf *buf, const m_allocator* a, m_usize offset, const void* data, m_usize len, mbuf_grow_proc grow);
 void        mbuf_remove(mbuf *buf, m_usize offset, m_usize len);
 void        mbuf_clear(mbuf *buf);
@@ -74,5 +74,14 @@ mview mbuf_as_view(const mbuf *buf);
 mspan mbuf_as_span(mbuf *buf);
 mview mbuf_slice(const mbuf *buf, m_usize offset, m_usize len);
 
+
+// ================================================
+//                  GROW PROCS
+//
+
+m_usize mbuf_grow_x2(m_usize cap, m_usize requested);
+m_usize mbuf_grow_x1_5(m_usize cap, m_usize requested);
+m_usize mbuf_grow_pow2(m_usize cap, m_usize requested);
+m_usize mbuf_grow_exact(m_usize cap, m_usize requested);
 
 #endif //M_MBUF_H

@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 
+
 // ================================================
 //                  CORE
 //
@@ -84,4 +85,52 @@ void mbuf_close(mbuf *buf, m_usize offset, m_usize len)
 void mbuf_free(mbuf *buf, const m_allocator* a)
 {
     mbuf_setcap(buf, a, 0);
+}
+
+
+// ================================================
+//                  UTILITY
+//
+
+mbuf_result mbuf_reserve(mbuf* buf, const m_allocator* a, m_usize min_cap)
+{
+    if (min_cap <= buf->cap)
+        return MBUF_OK;
+
+    return mbuf_setcap(buf, a, min_cap);
+}
+
+mbuf_result mbuf_shrink(mbuf *buf, const m_allocator* a, m_usize min_cap)
+{
+    if (buf->size == buf->cap)
+        return MBUF_OK;
+
+    m_usize new_cap = buf->size;
+
+    if (new_cap < min_cap)
+        new_cap = min_cap;
+
+    return mbuf_setcap(buf, a, new_cap);
+}
+
+mbuf_result mbuf_insert(mbuf* buf, const m_allocator* a, m_usize offset, const void *data, m_usize len, mbuf_grow_proc grow)
+{
+    m_usize needed = buf->size + len;
+
+    if (needed > buf->cap)
+    {
+        m_usize new_cap = grow ? grow(buf->cap, needed) : needed;
+        mbuf_result res = mbuf_setcap(buf, a, new_cap);
+        if (M_UNLIKELY(res != MBUF_OK))
+            return res;
+    }
+
+    mbuf_open(buf, offset, len);
+    mbuf_write(buf, offset, data, len);
+    return MBUF_OK;
+}
+
+void mbuf_remove(mbuf* buf, m_usize offset, m_usize len)
+{
+    mbuf_close(buf, offset, len);
 }

@@ -219,6 +219,18 @@ const m_allocator *m_heap_allocator(void);
 
 
 // ================================================
+//                BITNESS
+//
+
+#if UINTPTR_MAX == 0xffffffffffffffff
+#   define M_64_BIT
+#elif UINTPTR_MAX == 0xffffffff
+#   define M_32_BIT
+#else
+#   error "Unsupported pointer size"
+#endif
+
+// ================================================
 //                 ENDIANNESS
 //
 
