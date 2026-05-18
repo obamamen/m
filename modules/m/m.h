@@ -30,22 +30,58 @@ typedef double      m_f64;
 //                  ALLOCATOR
 //
 
-typedef void *(*m_alloc_proc)  (m_isize size, void *ctx);
-typedef void  (*m_free_proc)   (void *ptr, m_isize size, void *ctx);
-typedef void *(*m_realloc_proc)(void *ptr, m_isize old, m_isize new_, void *ctx);
+// ----------------------------------------------------------------
+// allocate a block of memory.
+//
+// size: number of bytes to allocate.
+//
+// ctx:  allocator context.
+// ----------------------------------------------------------------
+// returns: pointer to allocated memory, or NULL on failure.
+typedef void* (*m_alloc_proc)(m_isize size, void* ctx);
+
+// ----------------------------------------------------------------
+// free a previously allocated block.
+//
+// ptr:  pointer returned by alloc or realloc.
+//       if NULL, this is a no-op.
+//
+// size: original size passed to alloc or realloc.
+//
+// ctx:  allocator context.
+// ----------------------------------------------------------------
+typedef void (*m_free_proc)(void* ptr, m_isize size, void* ctx);
+
+// ----------------------------------------------------------------
+// resize a previously allocated block.
+//
+// ptr:      pointer returned by alloc or realloc.
+//           if NULL, behaves like alloc(new_size, ctx).
+//
+// old_size: original size of the block.
+//           ignored if ptr is NULL.
+//
+// new_size: requested new size.
+//           if 0, behaves like free(ptr, old_size, ctx).
+//
+// ctx:      allocator context.
+// ----------------------------------------------------------------
+// returns: pointer to resized memory, or NULL on failure.
+//          original ptr is still valid if NULL is returned.
+typedef void* (*m_realloc_proc)(void* ptr, m_isize old_size, m_isize new_size, void* ctx);
 
 struct m_allocator
 {
-    m_alloc_proc   alloc;
-    m_free_proc    free;
-    m_realloc_proc realloc;
-    void          *ctx;
+    m_alloc_proc    alloc;
+    m_free_proc     free;
+    m_realloc_proc  realloc;
+    void            *ctx;
 };
 typedef struct m_allocator m_allocator;
 
 #define M_ALLOC(a, size)             (a)->alloc(size, (a)->ctx)
 #define M_FREE(a, ptr, size)         (a)->free(ptr, size, (a)->ctx)
-#define M_REALLOC(a, ptr, old, new_) (a)->realloc(ptr, old, new_, (a)->ctx)
+#define M_REALLOC(a, ptr, old_size, new_size) (a)->realloc(ptr, old_size, new_size, (a)->ctx)
 
 // ----------------------------------------------------------------
 // default heap allocator.
