@@ -125,10 +125,36 @@ const m_allocator *m_heap_allocator(void);
 
 
 // ================================================
+//              COMPILER DETECTION
+//
+
+#define M_COMPILER_GCC   0
+#define M_COMPILER_CLANG 0
+#define M_COMPILER_MSVC  0
+#define M_COMPILER_OTHER 0
+
+#if defined(__clang__)
+#   undef  M_COMPILER_CLANG
+#   define M_COMPILER_CLANG 1
+
+#elif defined(__GNUC__) && !defined(__clang__)
+#   undef  M_COMPILER_GCC
+#   define M_COMPILER_GCC 1
+
+#elif defined(_MSC_VER)
+#   undef  M_COMPILER_MSVC
+#   define M_COMPILER_MSVC 1
+
+#else
+#   undef  M_COMPILER_OTHER
+#   define M_COMPILER_OTHER 1
+#endif
+
+// ================================================
 //                  BUILD INS
 //
 
-#if defined(__GNUC__) || defined(__clang__)
+#if M_COMPILER_GCC || M_COMPILER_CLANG
 #   define M_LIKELY(x)     __builtin_expect(!!(x), 1)
 #   define M_UNLIKELY(x)   __builtin_expect(!!(x), 0)
 #   define M_INLINE        __attribute__((always_inline)) inline
@@ -230,53 +256,362 @@ const m_allocator *m_heap_allocator(void);
 #   error "Unsupported pointer size"
 #endif
 
+
 // ================================================
 //                 ENDIANNESS
 //
 
-#ifdef M_C23
-#   include <stdbit.h>
-#   define M_IS_LITTLE_ENDIAN (__STDC_ENDIAN_NATIVE__ == __STDC_ENDIAN_LITTLE__)
-#   define M_IS_BIG_ENDIAN    (__STDC_ENDIAN_NATIVE__ == __STDC_ENDIAN_BIG__)
-#else
-static const int m__endian = 1;
-#   define M_IS_LITTLE_ENDIAN (*(const char *)&m__endian)
-#   define M_IS_BIG_ENDIAN    (!M_IS_LITTLE_ENDIAN)
-#endif
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
 
+#   define M_HAS_COMPILE_TIME_ENDIAN 1
+
+#   define M_IS_LITTLE_ENDIAN() (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#   define M_IS_BIG_ENDIAN()    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+
+#   define M_IS_LITTLE_ENDIAN_CT (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)    // compile time
+#   define M_IS_BIG_ENDIAN_CT    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)       // compile time
+
+#else
+
+#   define M_HAS_COMPILE_TIME_ENDIAN 0
+
+#   define M_IS_LITTLE_ENDIAN_CT 0
+#   define M_IS_BIG_ENDIAN_CT    0
+
+static M_INLINE int m__is_little_endian_runtime(void)
+{
+    const m_u16 x = 1;
+    return (*(const m_u8*)&x) == 1;
+}
+
+static M_INLINE int m__is_big_endian_runtime(void)
+{
+    return !m__is_little_endian_runtime();
+}
+
+#   define M_IS_LITTLE_ENDIAN() m__is_little_endian_runtime()
+#   define M_IS_BIG_ENDIAN()    m__is_big_endian_runtime()
+
+#endif
 
 // ================================================
 //                  BYTE SWAP
 //
+// NOTE: always pass unsigned values
 
-// note:    always pass unsigned values.
-//
+#if M_COMPILER_GCC || M_COMPILER_CLANG
 
-#define M_BSWAP16(x) \
+#   define M_BSWAP16(x) __builtin_bswap16((m_u16)(x))
+#   define M_BSWAP32(x) __builtin_bswap32((m_u32)(x))
+#   define M_BSWAP64(x) __builtin_bswap64((m_u64)(x))
+
+#elif M_COMPILER_MSVC
+
+#   include <intrin.h>
+
+#   define M_BSWAP16(x) _byteswap_ushort((unsigned short)(x))
+#   define M_BSWAP32(x) _byteswap_ulong((unsigned long)(x))
+#   define M_BSWAP64(x) _byteswap_uint64((unsigned __int64)(x))
+
+#else
+
+#   define M_BSWAP16(x) \
     ((m_u16)(((m_u16)(x) >> 8) | ((m_u16)(x) << 8)))
 
-#define M_BSWAP32(x) \
-    (((m_u32)(x) >> 24)                 | \
-    (((m_u32)(x) & 0x00FF0000U) >>  8) | \
-    (((m_u32)(x) & 0x0000FF00U) <<  8) | \
+#   define M_BSWAP32(x) \
+    (((m_u32)(x) >> 24) | \
+    (((m_u32)(x) >> 8) & 0x0000FF00u) | \
+    (((m_u32)(x) << 8) & 0x00FF0000u) | \
     ((m_u32)(x) << 24))
 
-#define M_BSWAP64(x) \
-    (((m_u64)(x) >> 56)                               | \
-    (((m_u64)(x) & 0x00FF000000000000ULL) >> 40)     | \
-    (((m_u64)(x) & 0x0000FF0000000000ULL) >> 24)     | \
-    (((m_u64)(x) & 0x000000FF00000000ULL) >>  8)     | \
-    (((m_u64)(x) & 0x00000000FF000000ULL) <<  8)     | \
-    (((m_u64)(x) & 0x0000000000FF0000ULL) << 24)     | \
-    (((m_u64)(x) & 0x000000000000FF00ULL) << 40)     | \
+#   define M_BSWAP64(x) \
+    (((m_u64)(x) >> 56) | \
+    (((m_u64)(x) >> 40) & 0x000000000000FF00ull) | \
+    (((m_u64)(x) >> 24) & 0x0000000000FF0000ull) | \
+    (((m_u64)(x) >>  8) & 0x00000000FF000000ull) | \
+    (((m_u64)(x) <<  8) & 0x000000FF00000000ull) | \
+    (((m_u64)(x) << 24) & 0x0000FF0000000000ull) | \
+    (((m_u64)(x) << 40) & 0x00FF000000000000ull) | \
     ((m_u64)(x) << 56))
 
-#define M_HTON16(x) (M_IS_LITTLE_ENDIAN ? M_BSWAP16(x) : (m_u16)(x))
-#define M_HTON32(x) (M_IS_LITTLE_ENDIAN ? M_BSWAP32(x) : (m_u32)(x))
-#define M_HTON64(x) (M_IS_LITTLE_ENDIAN ? M_BSWAP64(x) : (m_u64)(x))
+#endif
 
-#define M_NTOH16    M_HTON16
-#define M_NTOH32    M_HTON32
-#define M_NTOH64    M_HTON64
+
+// ================================================
+//              ENDIAN CONVERSION
+//
+
+#if M_HAS_COMPILE_TIME_ENDIAN
+
+#   if M_IS_LITTLE_ENDIAN_CT
+
+#       define M_HTON16(x) M_BSWAP16(x)
+#       define M_HTON32(x) M_BSWAP32(x)
+#       define M_HTON64(x) M_BSWAP64(x)
+
+#       define M_NTOH16(x) M_BSWAP16(x)
+#       define M_NTOH32(x) M_BSWAP32(x)
+#       define M_NTOH64(x) M_BSWAP64(x)
+
+#   else
+
+#       define M_HTON16(x) ((m_u16)(x))
+#       define M_HTON32(x) ((m_u32)(x))
+#       define M_HTON64(x) ((m_u64)(x))
+
+#       define M_NTOH16(x) ((m_u16)(x))
+#       define M_NTOH32(x) ((m_u32)(x))
+#       define M_NTOH64(x) ((m_u64)(x))
+
+#   endif
+
+#else
+
+#define M_HTON16(x) (M_IS_LITTLE_ENDIAN() ? M_BSWAP16(x) : (m_u16)(x))
+#define M_HTON32(x) (M_IS_LITTLE_ENDIAN() ? M_BSWAP32(x) : (m_u32)(x))
+#define M_HTON64(x) (M_IS_LITTLE_ENDIAN() ? M_BSWAP64(x) : (m_u64)(x))
+
+#define M_NTOH16(x) M_HTON16(x)
+#define M_NTOH32(x) M_HTON32(x)
+#define M_NTOH64(x) M_HTON64(x)
+
+#endif
+
+
+// ================================================
+//              BIT INTRINSICS
+//
+// NOTES:
+//   M_POPCOUNT*, M_CLZ*, M_CTZ* : undefined behaviour for x == 0
+//     use M_CLZ32_SAFE / M_CTZ32_SAFE variants if x may be zero.
+//
+//   always pass unsigned values.
+
+
+// ------------------------------------------------
+//  GCC / Clang
+// ------------------------------------------------
+#if M_COMPILER_GCC || M_COMPILER_CLANG
+
+#   define M_POPCOUNT32(x) __builtin_popcount((unsigned int)(x))
+#   define M_POPCOUNT64(x) __builtin_popcountll((unsigned long long)(x))
+
+#   define M_CLZ32(x)      __builtin_clz((unsigned int)(x))
+#   define M_CLZ64(x)      __builtin_clzll((unsigned long long)(x))
+
+#   define M_CTZ32(x)      __builtin_ctz((unsigned int)(x))
+#   define M_CTZ64(x)      __builtin_ctzll((unsigned long long)(x))
+
+#   define M_BSR32(x)      (31  - __builtin_clz((unsigned int)(x)))
+#   define M_BSR64(x)      (63  - __builtin_clzll((unsigned long long)(x)))
+#   define M_BSF32(x)      __builtin_ctz((unsigned int)(x))
+#   define M_BSF64(x)      __builtin_ctzll((unsigned long long)(x))
+
+#   if (M_COMPILER_GCC && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))) \
+     || M_COMPILER_CLANG
+#       define M_ROTL32(x, n) \
+            (((m_u32)(x) << ((n) & 31)) | ((m_u32)(x) >> ((-((int)(n))) & 31)))
+#       define M_ROTR32(x, n) \
+            (((m_u32)(x) >> ((n) & 31)) | ((m_u32)(x) << ((-((int)(n))) & 31)))
+#       define M_ROTL64(x, n) \
+            (((m_u64)(x) << ((n) & 63)) | ((m_u64)(x) >> ((-((int)(n))) & 63)))
+#       define M_ROTR64(x, n) \
+            (((m_u64)(x) >> ((n) & 63)) | ((m_u64)(x) << ((-((int)(n))) & 63)))
+#   else
+#       define M_ROTL32(x, n) \
+            (((m_u32)(x) << ((n) % 32)) | ((m_u32)(x) >> ((32 - (n)) % 32)))
+#       define M_ROTR32(x, n) \
+            (((m_u32)(x) >> ((n) % 32)) | ((m_u32)(x) << ((32 - (n)) % 32)))
+#       define M_ROTL64(x, n) \
+            (((m_u64)(x) << ((n) % 64)) | ((m_u64)(x) >> ((64 - (n)) % 64)))
+#       define M_ROTR64(x, n) \
+            (((m_u64)(x) >> ((n) % 64)) | ((m_u64)(x) << ((64 - (n)) % 64)))
+#   endif
+
+// ------------------------------------------------
+//  MSVC
+// ------------------------------------------------
+#elif M_COMPILER_MSVC
+
+#   include <intrin.h>
+
+#   define M_POPCOUNT32(x) __popcnt((unsigned int)(x))
+#   define M_POPCOUNT64(x) __popcnt64((unsigned __int64)(x))
+
+    // _BitScanReverse/Forward: portable across all MSVC targets (no BMI1 needed).
+    // They write the bit index into an unsigned long and return 0 if x == 0.
+
+static M_INLINE m_i32 m__msvc_clz32(m_u32 x)
+{
+    unsigned long idx;
+    _BitScanReverse(&idx, (unsigned long)x);
+    return 31 - (m_i32)idx;
+}
+
+static M_INLINE m_i32 m__msvc_clz64(m_u64 x)
+{
+#   if defined(M_ARCH_X64) || defined(M_ARCH_ARM64)
+    unsigned long idx;
+    _BitScanReverse64(&idx, (unsigned __int64)x);
+    return 63 - (m_i32)idx;
+#   else
+    // 32-bit MSVC has no _BitScanReverse64
+    unsigned long idx;
+    if (x >> 32) {
+        _BitScanReverse(&idx, (unsigned long)(x >> 32));
+        return 31 - (m_i32)idx;
+    }
+    _BitScanReverse(&idx, (unsigned long)(x & 0xFFFFFFFFu));
+    return 63 - (m_i32)idx;
+#   endif
+}
+
+static M_INLINE m_i32 m__msvc_ctz32(m_u32 x)
+{
+    unsigned long idx;
+    _BitScanForward(&idx, (unsigned long)x);
+    return (m_i32)idx;
+}
+
+static M_INLINE m_i32 m__msvc_ctz64(m_u64 x)
+{
+#   if defined(M_ARCH_X64) || defined(M_ARCH_ARM64)
+    unsigned long idx;
+    _BitScanForward64(&idx, (unsigned __int64)x);
+    return (m_i32)idx;
+#   else
+    unsigned long idx;
+    if (x & 0xFFFFFFFFu) {
+        _BitScanForward(&idx, (unsigned long)(x & 0xFFFFFFFFu));
+        return (m_i32)idx;
+    }
+    _BitScanForward(&idx, (unsigned long)(x >> 32));
+    return 32 + (m_i32)idx;
+#   endif
+}
+
+#   define M_CLZ32(x)  m__msvc_clz32((m_u32)(x))
+#   define M_CLZ64(x)  m__msvc_clz64((m_u64)(x))
+#   define M_CTZ32(x)  m__msvc_ctz32((m_u32)(x))
+#   define M_CTZ64(x)  m__msvc_ctz64((m_u64)(x))
+
+#   define M_BSR32(x)  (31  - M_CLZ32(x))
+#   define M_BSR64(x)  (63  - M_CLZ64(x))
+#   define M_BSF32(x)  M_CTZ32(x)
+#   define M_BSF64(x)  M_CTZ64(x)
+
+#   define M_ROTL32(x, n) _rotl( (unsigned int)(x),    (int)(n))
+#   define M_ROTR32(x, n) _rotr( (unsigned int)(x),    (int)(n))
+#   define M_ROTL64(x, n) _rotl64((unsigned __int64)(x),(int)(n))
+#   define M_ROTR64(x, n) _rotr64((unsigned __int64)(x),(int)(n))
+
+// ------------------------------------------------
+//  Portable fallbacks
+// ------------------------------------------------
+#else
+
+static M_INLINE m_i32 M_POPCOUNT32(m_u32 x)
+{
+    x = x - ((x >> 1) & 0x55555555u);
+    x = (x & 0x33333333u) + ((x >> 2) & 0x33333333u);
+    x = (x + (x >> 4)) & 0x0F0F0F0Fu;
+    return (m_i32)((x * 0x01010101u) >> 24);
+}
+
+static M_INLINE m_i32 M_POPCOUNT64(m_u64 x)
+{
+    x = x - ((x >> 1) & 0x5555555555555555ull);
+    x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
+    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full;
+    return (m_i32)((x * 0x0101010101010101ull) >> 56);
+}
+
+static M_INLINE m_i32 M_CLZ32(m_u32 x)
+{
+    // binary search, branchless-friendly
+    m_i32 n = 0;
+    if (!(x & 0xFFFF0000u)) { n += 16; x <<= 16; }
+    if (!(x & 0xFF000000u)) { n +=  8; x <<=  8; }
+    if (!(x & 0xF0000000u)) { n +=  4; x <<=  4; }
+    if (!(x & 0xC0000000u)) { n +=  2; x <<=  2; }
+    if (!(x & 0x80000000u)) { n +=  1; }
+    return n;
+}
+
+static M_INLINE m_i32 M_CLZ64(m_u64 x)
+{
+    if (x >> 32) return M_CLZ32((m_u32)(x >> 32));
+    return 32 + M_CLZ32((m_u32)(x & 0xFFFFFFFFu));
+}
+
+static M_INLINE m_i32 M_CTZ32(m_u32 x)
+{
+    // isolate lowest set bit then popcount trick
+    return M_POPCOUNT32((x & (m_u32)(-(m_i32)x)) - 1u);
+}
+
+static M_INLINE m_i32 M_CTZ64(m_u64 x)
+{
+    if (x & 0xFFFFFFFFu) return M_CTZ32((m_u32)(x & 0xFFFFFFFFu));
+    return 32 + M_CTZ32((m_u32)(x >> 32));
+}
+
+#   define M_BSR32(x)  (31  - M_CLZ32((m_u32)(x)))
+#   define M_BSR64(x)  (63  - M_CLZ64((m_u64)(x)))
+#   define M_BSF32(x)  M_CTZ32((m_u32)(x))
+#   define M_BSF64(x)  M_CTZ64((m_u64)(x))
+
+#   define M_ROTL32(x, n) \
+        (((m_u32)(x) << ((n) % 32)) | ((m_u32)(x) >> ((32 - (n)) % 32)))
+#   define M_ROTR32(x, n) \
+        (((m_u32)(x) >> ((n) % 32)) | ((m_u32)(x) << ((32 - (n)) % 32)))
+#   define M_ROTL64(x, n) \
+        (((m_u64)(x) << ((n) % 64)) | ((m_u64)(x) >> ((64 - (n)) % 64)))
+#   define M_ROTR64(x, n) \
+        (((m_u64)(x) >> ((n) % 64)) | ((m_u64)(x) << ((64 - (n)) % 64)))
+
+#endif // compiler dispatch
+
+
+// ================================================
+//           BIT UTILITY MACROS
+//
+// These are compiler-agnostic and build on the
+// intrinsics above.
+//
+
+// safe variants: return the specified value when x == 0
+// (avoids UB from CLZ/CTZ on zero)
+#define M_CLZ32_SAFE(x, val_if_zero) ((x) ? M_CLZ32(x) : (val_if_zero))
+#define M_CLZ64_SAFE(x, val_if_zero) ((x) ? M_CLZ64(x) : (val_if_zero))
+#define M_CTZ32_SAFE(x, val_if_zero) ((x) ? M_CTZ32(x) : (val_if_zero))
+#define M_CTZ64_SAFE(x, val_if_zero) ((x) ? M_CTZ64(x) : (val_if_zero))
+
+// true iff x is an exact power of two  (x must be > 0)
+#define M_IS_POW2(x)    (((x) & ((x) - 1)) == 0)
+
+// round x up to the next power of two.
+// returns 1 for x == 0; returns x if x is already a power of two.
+// result is undefined if x > 2^31 (32-bit) or x > 2^63 (64-bit).
+#define M_NEXT_POW2_32(x) \
+    (((m_u32)(x) <= 1u) ? 1u : (m_u32)1u << (32 - M_CLZ32((m_u32)(x) - 1u)))
+#define M_NEXT_POW2_64(x) \
+    (((m_u64)(x) <= 1ull) ? 1ull : (m_u64)1ull << (64 - M_CLZ64((m_u64)(x) - 1ull)))
+
+// round x up to the nearest multiple of align (align must be a power of two)
+#define M_ALIGN_UP(x, align)   (((x) + (align) - 1) & ~((align) - 1))
+#define M_ALIGN_DOWN(x, align) ((x) & ~((align) - 1))
+#define M_IS_ALIGNED(x, align) (((x) & ((align) - 1)) == 0)
+
+// extract / set / clear individual bits
+#define M_BIT_GET(x, bit)      (((x) >> (bit)) & 1u)
+#define M_BIT_SET(x, bit)      ((x) |  ((m_u64)1u << (bit)))
+#define M_BIT_CLEAR(x, bit)    ((x) & ~((m_u64)1u << (bit)))
+#define M_BIT_TOGGLE(x, bit)   ((x) ^  ((m_u64)1u << (bit)))
+
+// mask of n low bits  (n must be < width of result type)
+#define M_MASK32(n)            ((m_u32)((n) < 32 ? ((m_u32)1u  << (n)) - 1u   : 0xFFFFFFFFu))
+#define M_MASK64(n)            ((m_u64)((n) < 64 ? ((m_u64)1ull << (n)) - 1ull : 0xFFFFFFFFFFFFFFFFull))
+
 
 #endif //M_H
