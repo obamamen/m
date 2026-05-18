@@ -166,9 +166,9 @@ void mtest_case_begin (mtest *t, const char *name);
 void mtest_case_beginf(mtest *t, const char *fmt, ...);
 void mtest_case_end   (mtest *t);
 
-inline int         mtest_depth     (const mtest *t) { return t->_group_depth;  }
-inline const char* mtest_group_name(const mtest *t, int i) { return t->_groups[i]; }
-inline const char* mtest_case_name (const mtest *t) { return t->_case_name;    }
+static inline int         mtest_depth     (const mtest *t) { return t->_group_depth;  }
+static inline const char* mtest_group_name(const mtest *t, int i) { return t->_groups[i]; }
+static inline const char* mtest_case_name (const mtest *t) { return t->_case_name;    }
 
 
 // internal
