@@ -108,7 +108,7 @@ const m_allocator *m_heap_allocator(void);
 #define M_STRINGIFY(x)  M_STRINGIFY_(x)
 
 #define M_BLOCK(var, start, end) \
-    for (int var = (start, 0); !var; var = (end, 1))
+    for (int var = ((start), 0); !var; (void)(end), var = 1)
 
 #define M_UNUSED(x) (void)(x)
 
@@ -149,6 +149,7 @@ const m_allocator *m_heap_allocator(void);
 #   undef  M_COMPILER_OTHER
 #   define M_COMPILER_OTHER 1
 #endif
+
 
 // ================================================
 //                  BUILD INS
@@ -249,9 +250,11 @@ const m_allocator *m_heap_allocator(void);
 //
 
 #if UINTPTR_MAX == 0xffffffffffffffff
-#   define M_64_BIT
+#   define M_64_BIT 1
+#   define M_32_BIT 0
 #elif UINTPTR_MAX == 0xffffffff
-#   define M_32_BIT
+#   define M_64_BIT 0
+#   define M_32_BIT 1
 #else
 #   error "Unsupported pointer size"
 #endif
@@ -387,10 +390,6 @@ static M_INLINE int m__is_big_endian_runtime(void)
 //
 //   always pass unsigned values.
 
-
-// ------------------------------------------------
-//  GCC / Clang
-// ------------------------------------------------
 #if M_COMPILER_GCC || M_COMPILER_CLANG
 
 #   define M_POPCOUNT32(x) __builtin_popcount((unsigned int)(x))
@@ -428,9 +427,6 @@ static M_INLINE int m__is_big_endian_runtime(void)
             (((m_u64)(x) >> ((n) % 64)) | ((m_u64)(x) << ((64 - (n)) % 64)))
 #   endif
 
-// ------------------------------------------------
-//  MSVC
-// ------------------------------------------------
 #elif M_COMPILER_MSVC
 
 #   include <intrin.h>
@@ -438,8 +434,7 @@ static M_INLINE int m__is_big_endian_runtime(void)
 #   define M_POPCOUNT32(x) __popcnt((unsigned int)(x))
 #   define M_POPCOUNT64(x) __popcnt64((unsigned __int64)(x))
 
-    // _BitScanReverse/Forward: portable across all MSVC targets (no BMI1 needed).
-    // They write the bit index into an unsigned long and return 0 if x == 0.
+
 
 static M_INLINE m_i32 m__msvc_clz32(m_u32 x)
 {
@@ -455,9 +450,9 @@ static M_INLINE m_i32 m__msvc_clz64(m_u64 x)
     _BitScanReverse64(&idx, (unsigned __int64)x);
     return 63 - (m_i32)idx;
 #   else
-    // 32-bit MSVC has no _BitScanReverse64
     unsigned long idx;
-    if (x >> 32) {
+    if (x >> 32)
+    {
         _BitScanReverse(&idx, (unsigned long)(x >> 32));
         return 31 - (m_i32)idx;
     }
@@ -505,9 +500,6 @@ static M_INLINE m_i32 m__msvc_ctz64(m_u64 x)
 #   define M_ROTL64(x, n) _rotl64((unsigned __int64)(x),(int)(n))
 #   define M_ROTR64(x, n) _rotr64((unsigned __int64)(x),(int)(n))
 
-// ------------------------------------------------
-//  Portable fallbacks
-// ------------------------------------------------
 #else
 
 static M_INLINE m_i32 M_POPCOUNT32(m_u32 x)
@@ -528,7 +520,6 @@ static M_INLINE m_i32 M_POPCOUNT64(m_u64 x)
 
 static M_INLINE m_i32 M_CLZ32(m_u32 x)
 {
-    // binary search, branchless-friendly
     m_i32 n = 0;
     if (!(x & 0xFFFF0000u)) { n += 16; x <<= 16; }
     if (!(x & 0xFF000000u)) { n +=  8; x <<=  8; }
@@ -546,7 +537,6 @@ static M_INLINE m_i32 M_CLZ64(m_u64 x)
 
 static M_INLINE m_i32 M_CTZ32(m_u32 x)
 {
-    // isolate lowest set bit then popcount trick
     return M_POPCOUNT32((x & (m_u32)(-(m_i32)x)) - 1u);
 }
 
@@ -604,10 +594,10 @@ static M_INLINE m_i32 M_CTZ64(m_u64 x)
 #define M_IS_ALIGNED(x, align) (((x) & ((align) - 1)) == 0)
 
 // extract / set / clear individual bits
-#define M_BIT_GET(x, bit)      (((x) >> (bit)) & 1u)
-#define M_BIT_SET(x, bit)      ((x) |  ((m_u64)1u << (bit)))
-#define M_BIT_CLEAR(x, bit)    ((x) & ~((m_u64)1u << (bit)))
-#define M_BIT_TOGGLE(x, bit)   ((x) ^  ((m_u64)1u << (bit)))
+#define M_BIT_GET(x, bit)      (((x) >> (bit)) & 1ull)
+#define M_BIT_SET(x, bit)      ((x) |  ((m_u64)1ull << (bit)))
+#define M_BIT_CLEAR(x, bit)    ((x) & ~((m_u64)1ull << (bit)))
+#define M_BIT_TOGGLE(x, bit)   ((x) ^  ((m_u64)1ull << (bit)))
 
 // mask of n low bits  (n must be < width of result type)
 #define M_MASK32(n)            ((m_u32)((n) < 32 ? ((m_u32)1u  << (n)) - 1u   : 0xFFFFFFFFu))

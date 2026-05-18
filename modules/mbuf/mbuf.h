@@ -12,6 +12,7 @@ enum mbuf_result
 {
     MBUF_OK = M_OK,
     MBUF_OOM = M_OOM,
+    MBUF_ERR_GROW = 2 // cant fulfil grow_proc's contract.
 };
 typedef enum mbuf_result mbuf_result;
 
@@ -30,8 +31,8 @@ typedef struct mbuf mbuf;
 
 struct mview
 {
-    const void*     data;
-    const m_usize   size;
+    const void* data;
+    m_usize     size;
 };
 typedef struct mview mview;
 
@@ -42,6 +43,22 @@ struct mspan
 };
 typedef struct mspan mspan;
 
+// ----------------------------------------------------------------
+// will return the size the caller should grow to.
+//
+// cap:         current allocated bytes.
+// requested:   MINIMAL bytes needed. guaranteed to be > cap.
+//
+// pre:
+//  cap < requested
+//
+// post:
+//  must return >= requested.
+//  EXCEPTION:
+//      when the growth proc cant fulfill its own contract, it can return 0,
+//      to indicate an error.
+//      (e.g. if the next pow2 is bigger than m_usize allows)
+// ----------------------------------------------------------------
 typedef m_usize (*mbuf_grow_proc)(m_usize cap, m_usize requested);
 
 
@@ -66,13 +83,30 @@ void mbuf_free(mbuf *buf, const m_allocator* a);
 
 mbuf_result mbuf_reserve(mbuf* buf, const m_allocator* a, m_usize min_cap);
 mbuf_result mbuf_shrink(mbuf* buf, const m_allocator* a, m_usize min_cap);
-mbuf_result mbuf_insert(mbuf *buf, const m_allocator* a, m_usize offset, const void* data, m_usize len, mbuf_grow_proc grow);
+mbuf_result mbuf_insert(mbuf *buf, const m_allocator* a, m_usize offset, mview src, mbuf_grow_proc grow);
 void        mbuf_remove(mbuf *buf, m_usize offset, m_usize len);
 void        mbuf_clear(mbuf *buf);
 
-mview mbuf_as_view(const mbuf *buf);
-mspan mbuf_as_span(mbuf *buf);
-mview mbuf_slice(const mbuf *buf, m_usize offset, m_usize len);
+static M_INLINE mview mbuf_as_view(const mbuf* buf) { return (mview){.data = buf->data, .size = buf->size}; }
+
+static M_INLINE mspan mbuf_as_span(mbuf* buf) { return (mspan){.data = buf->data, .size = buf->size}; }
+
+static M_INLINE mview mbuf_slice(const mbuf* buf, m_usize offset, m_usize size)
+{
+    if (offset > buf->size) offset = buf->size;
+
+    m_usize max_len = buf->size - offset;
+    if (size > max_len) size = max_len;
+
+    return (mview){
+        .data = (const char*)buf->data + offset,
+        .size = size
+    };
+}
+
+static M_INLINE mview mview_make(const void* data, m_usize size) { return (mview){ .data = data, .size = size }; }
+
+static M_INLINE mspan mspan_make(void* data, m_usize size) { return (mspan){ .data = data, .size = size }; }
 
 
 // ================================================

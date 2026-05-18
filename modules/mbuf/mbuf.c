@@ -113,24 +113,93 @@ mbuf_result mbuf_shrink(mbuf *buf, const m_allocator* a, m_usize min_cap)
     return mbuf_setcap(buf, a, new_cap);
 }
 
-mbuf_result mbuf_insert(mbuf* buf, const m_allocator* a, m_usize offset, const void *data, m_usize len, mbuf_grow_proc grow)
+mbuf_result mbuf_insert(mbuf* buf, const m_allocator* a, m_usize offset, mview src, mbuf_grow_proc grow)
 {
-    m_usize needed = buf->size + len;
+    assert(offset <= buf->size);
+
+    m_usize needed = buf->size + src.size;
 
     if (needed > buf->cap)
     {
         m_usize new_cap = grow ? grow(buf->cap, needed) : needed;
+
+        if (M_UNLIKELY(new_cap < needed || new_cap == 0))
+            return MBUF_ERR_GROW;
+
         mbuf_result res = mbuf_setcap(buf, a, new_cap);
         if (M_UNLIKELY(res != MBUF_OK))
             return res;
     }
 
-    mbuf_open(buf, offset, len);
-    mbuf_write(buf, offset, data, len);
+    mbuf_open(buf, offset, src.size);
+    mbuf_write(buf, offset, src.data, src.size);
     return MBUF_OK;
 }
 
 void mbuf_remove(mbuf* buf, m_usize offset, m_usize len)
 {
     mbuf_close(buf, offset, len);
+}
+
+void mbuf_clear(mbuf* buf)
+{
+    buf->size = 0;
+}
+
+
+m_usize mbuf_grow_x2(m_usize cap, m_usize requested)
+{
+    assert(cap <= requested);
+
+    m_usize new_cap = (cap == 0) ? 8 : cap * 2;
+
+    if (M_UNLIKELY(new_cap < requested))
+        new_cap = requested;
+
+
+    return new_cap;
+}
+
+m_usize mbuf_grow_x1_5(m_usize cap, m_usize requested)
+{
+    assert(cap <= requested);
+
+    m_usize new_cap = (cap == 0) ? 8 : cap + (cap / 2);
+
+    if (M_UNLIKELY(new_cap < requested))
+        new_cap = requested;
+
+
+    return new_cap;
+}
+
+m_usize mbuf_grow_pow2(m_usize cap, m_usize requested)
+{
+    assert(cap <= requested);
+
+    M_UNUSED(cap);
+
+    if (requested < 4)
+        return 4;
+
+    m_usize new_cap = requested;
+
+#if M_64_BIT
+    new_cap = M_NEXT_POW2_64(new_cap);
+#elif M_32_BIT
+    new_cap = M_NEXT_POW2_32(new_cap);
+#endif
+
+    if (M_UNLIKELY(new_cap < requested))
+        return 0;
+
+    return new_cap;
+}
+
+m_usize mbuf_grow_exact(m_usize cap, m_usize requested)
+{
+    assert(cap <= requested);
+
+    M_UNUSED(cap);
+    return requested;
 }
