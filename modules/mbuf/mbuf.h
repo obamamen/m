@@ -114,8 +114,19 @@ static M_INLINE mspan mspan_make(void* data, m_usize size) { return (mspan){ .da
 //
 
 m_usize mbuf_grow_x2(m_usize cap, m_usize requested);
+
 m_usize mbuf_grow_x1_5(m_usize cap, m_usize requested);
+
+// ----------------------------------------------------------------
+// calculates the next power of two capacity for the buffer.
+//
+// returns:
+//  the next power of two size that is >= requested.
+//
+// follows the mbuf_grow_proc contract; look there for more info.
+// ----------------------------------------------------------------
 m_usize mbuf_grow_pow2(m_usize cap, m_usize requested);
+
 m_usize mbuf_grow_exact(m_usize cap, m_usize requested);
 
 #endif //M_MBUF_H
