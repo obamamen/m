@@ -1,6 +1,7 @@
 #ifndef M_H
 #define M_H
 
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -125,6 +126,37 @@ const m_allocator *m_heap_allocator(void);
 #    if __STDC_VERSION__ >= 199901L
 #       define M_C99
 #   endif
+#endif
+
+
+// ================================================
+//                OS DETECTION
+//
+
+#if defined(_WIN32) || defined(_WIN64)
+#   define M_OS_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+#   define M_OS_MACOS
+#elif defined(__linux__)
+#   define M_OS_LINUX
+#elif defined(__FreeBSD__)
+#   define M_OS_FREEBSD
+#elif defined(__OpenBSD__)
+#   define M_OS_OPENBSD
+#elif defined(__NetBSD__)
+#   define M_OS_NETBSD
+#elif defined(__unix__)
+#   define M_OS_UNIX
+#else
+#   define M_OS_UNKNOWN
+#endif
+
+#if defined(M_OS_FREEBSD) || defined(M_OS_OPENBSD) || defined(M_OS_NETBSD)
+#   define M_OS_BSD
+#endif
+
+#if defined(M_OS_LINUX) || defined(M_OS_MACOS) || defined(M_OS_BSD) || defined(M_OS_UNIX)
+#   define M_OS_POSIX
 #endif
 
 
