@@ -13,23 +13,25 @@ typedef enum mbuf_result mbuf_result;
 struct mbuf
 {
     void*   data;
-    m_isize size;
-    m_isize cap;
+    m_usize size;
+    m_usize cap;
 };
 typedef struct mbuf mbuf;
 
 struct mview
 {
     const void*     data;
-    const m_isize   size;
+    const m_usize   size;
 };
 typedef struct mview mview;
 
 struct mspan
 {
     void*           data;
-    const m_isize   size;
+    const m_usize   size;
 };
 typedef struct mspan mspan;
+
+mbuf mbuf_new(void);
 
 #endif //M_MBUF_H

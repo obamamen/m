@@ -16,24 +16,24 @@ M_STATIC_ASSERT(sizeof(m_u64) == 8, m_u64_size);
 //                HEAP ALLOCATOR
 //
 
-static void *heap_alloc(m_isize size, void *ctx)
+static void *heap_alloc(m_usize size, void *ctx)
 {
     (void)ctx;
-    return malloc((m_usize)size);
+    return malloc(size);
 }
 
-static void heap_free(void *ptr, m_isize size, void *ctx)
+static void heap_free(void *ptr, m_usize size, void* ctx)
 {
     (void)ctx;
     (void)size;
     free(ptr);
 }
 
-static void *heap_realloc(void *ptr, m_isize old, m_isize new_, void *ctx)
+static void *heap_realloc(void *ptr, m_usize old_size, m_usize new_size, void* ctx)
 {
     (void)ctx;
-    (void)old;
-    return realloc(ptr, (m_usize)new_);
+    (void)old_size;
+    return realloc(ptr, new_size);
 }
 
 static const m_allocator m__heap = {

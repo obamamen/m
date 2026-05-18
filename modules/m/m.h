@@ -45,7 +45,7 @@ typedef enum m_result m_result;
 // ctx:  allocator context.
 // ----------------------------------------------------------------
 // returns: pointer to allocated memory, or NULL on failure.
-typedef void* (*m_alloc_proc)(m_isize size, void* ctx);
+typedef void* (*m_alloc_proc)(m_usize size, void* ctx);
 
 // ----------------------------------------------------------------
 // free a previously allocated block.
@@ -57,7 +57,7 @@ typedef void* (*m_alloc_proc)(m_isize size, void* ctx);
 //
 // ctx:  allocator context.
 // ----------------------------------------------------------------
-typedef void (*m_free_proc)(void* ptr, m_isize size, void* ctx);
+typedef void (*m_free_proc)(void* ptr, m_usize size, void* ctx);
 
 // ----------------------------------------------------------------
 // resize a previously allocated block.
@@ -75,7 +75,7 @@ typedef void (*m_free_proc)(void* ptr, m_isize size, void* ctx);
 // ----------------------------------------------------------------
 // returns: pointer to resized memory, or NULL on failure.
 //          original ptr is still valid if NULL is returned.
-typedef void* (*m_realloc_proc)(void* ptr, m_isize old_size, m_isize new_size, void* ctx);
+typedef void* (*m_realloc_proc)(void* ptr, m_usize old_size, m_usize new_size, void* ctx);
 
 struct m_allocator
 {
