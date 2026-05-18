@@ -1,6 +1,9 @@
 #ifndef M_MTEST_TERMINAL_H
 #define M_MTEST_TERMINAL_H
 
+#include <stdio.h>
+#include <string.h>
+
 #include "mtest.h"
 
 

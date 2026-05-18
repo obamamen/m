@@ -1,7 +1,5 @@
-#include <stdio.h>
-#include <string.h>
-
 #include <m/m.h>
+
 #include <mtest/mtest.h>
 #include <mtest/mtest_terminal.h>
 

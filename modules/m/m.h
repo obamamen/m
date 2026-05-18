@@ -25,6 +25,13 @@ typedef int64_t     m_i64;
 typedef float       m_f32;
 typedef double      m_f64;
 
+enum m_result
+{
+    M_OK = 0,
+    M_OOM = -1,
+};
+typedef enum m_result m_result;
+
 
 // ================================================
 //                  ALLOCATOR
