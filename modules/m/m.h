@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
 // ================================================
 //                    TYPES
 //
@@ -151,9 +152,16 @@ const m_allocator *m_heap_allocator(void);
 #endif
 
 
-// ================================================
-//                  BUILD INS
+// =====================================================
+//              COMPILER BUILTINS
 //
+//  M_LIKELY(x)
+//  M_UNLIKELY(x)
+//  M_INLINE
+//  M_NOINLINE
+//  M_UNREACHABLE()
+//  M_NORETURN
+//  M_RESTRICT
 
 #if M_COMPILER_GCC || M_COMPILER_CLANG
 #   define M_LIKELY(x)     __builtin_expect(!!(x), 1)
@@ -260,9 +268,16 @@ const m_allocator *m_heap_allocator(void);
 #endif
 
 
-// ================================================
-//                 ENDIANNESS
+// =====================================================
+//              ENDIANNESS DETECTION
 //
+// provides compile-time or runtime detection depending on
+// compiler support.
+//
+// prefer compile-time macros when available.
+//
+// M_IS_LITTLE_ENDIAN() and M_IS_BIG_ENDIAN() is a runtime version.
+// M_IS_LITTLE_ENDIAN_CT and M_IS_BIG_ENDIAN_CT are compile-time and require M_HAS_COMPILE_TIME_ENDIAN == 1
 
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
 
@@ -381,14 +396,33 @@ static M_INLINE int m__is_big_endian_runtime(void)
 #endif
 
 
-// ================================================
-//              BIT INTRINSICS
+// =====================================================
+// BIT INTRINSICS
 //
-// NOTES:
-//   M_POPCOUNT*, M_CLZ*, M_CTZ* : undefined behaviour for x == 0
-//     use M_CLZ32_SAFE / M_CTZ32_SAFE variants if x may be zero.
+//  M_POPCOUNT32(x)
+//  M_POPCOUNT64(x)
 //
-//   always pass unsigned values.
+//  M_CLZ32(x)
+//  M_CLZ64(x)
+//
+//  M_CTZ32(x)
+//  M_CTZ64(x)
+//
+//  M_BSR32(x)
+//  M_BSR64(x)
+//
+//  M_BSF32(x)
+//  M_BSF64(x)
+//
+//  M_ROTL32(x, n)
+//  M_ROTR32(x, n)
+//  M_ROTL64(x, n)
+//  M_ROTR64(x, n)
+//
+// WARNING:
+// - CLZ/CTZ are undefined for x == 0 (use SAFE variants)
+// - all inputs must be unsigned
+//
 
 #if M_COMPILER_GCC || M_COMPILER_CLANG
 
@@ -566,8 +600,6 @@ static M_INLINE m_i32 M_CTZ64(m_u64 x)
 // ================================================
 //           BIT UTILITY MACROS
 //
-// These are compiler-agnostic and build on the
-// intrinsics above.
 //
 
 // safe variants: return the specified value when x == 0
