@@ -135,21 +135,85 @@ const m_allocator *m_heap_allocator(void);
 #define M_COMPILER_OTHER 0
 
 #if defined(__clang__)
+
 #   undef  M_COMPILER_CLANG
 #   define M_COMPILER_CLANG 1
 
+#   if defined(_MSC_VER)
+#       undef  M_COMPILER_MSVC
+#       define M_COMPILER_MSVC 1
+#   endif
+
 #elif defined(__GNUC__) && !defined(__clang__)
+
 #   undef  M_COMPILER_GCC
 #   define M_COMPILER_GCC 1
 
 #elif defined(_MSC_VER)
+
 #   undef  M_COMPILER_MSVC
 #   define M_COMPILER_MSVC 1
 
 #else
+
 #   undef  M_COMPILER_OTHER
 #   define M_COMPILER_OTHER 1
+
 #endif
+
+#define M_COMPILER_CLANG_OR_GCC (M_COMPILER_CLANG || M_COMPILER_GCC)
+
+
+// ================================================
+//                  C VERSION
+//
+
+#if defined(__STDC_VERSION__)
+
+#   if __STDC_VERSION__ >= 202311L
+#       define M_C23 1
+#       define M_C17 1
+#       define M_C11 1
+#       define M_C99 1
+
+#   elif __STDC_VERSION__ >= 201710L
+#       define M_C23 0
+#       define M_C17 1
+#       define M_C11 1
+#       define M_C99 1
+
+#   elif __STDC_VERSION__ >= 201112L
+#       define M_C23 0
+#       define M_C17 0
+#       define M_C11 1
+#       define M_C99 1
+
+#   elif __STDC_VERSION__ >= 199901L
+#       define M_C23 0
+#       define M_C17 0
+#       define M_C11 0
+#       define M_C99 1
+
+#   else
+#       define M_C23 0
+#       define M_C17 0
+#       define M_C11 0
+#       define M_C99 0
+#   endif
+
+#else
+
+#   define M_C23 0
+#   define M_C17 0
+#   define M_C11 0
+#   define M_C99 0
+
+#endif
+
+#define M_C99_OR_NEWER (M_C99 || M_C11 || M_C17 || M_C23)
+#define M_C11_OR_NEWER (M_C11 || M_C17 || M_C23)
+#define M_C17_OR_NEWER (M_C17 || M_C23)
+#define M_C23_OR_NEWER (M_C23)
 
 
 // =====================================================
@@ -186,24 +250,11 @@ const m_allocator *m_heap_allocator(void);
 #   define M_NOINLINE
 #   define M_UNREACHABLE()
 #   define M_NORETURN
+#if M_C99_OR_NEWER
+#   define M_RESTRICT restrict
+#else
 #   define M_RESTRICT
 #endif
-
-
-// ================================================
-//                  C VERSION
-//
-
-#if defined(__STDC_VERSION__)
-#    if __STDC_VERSION__ >= 202311L
-#       define M_C23
-#    endif
-#    if __STDC_VERSION__ >= 201112L
-#       define M_C11
-#    endif
-#    if __STDC_VERSION__ >= 199901L
-#       define M_C99
-#   endif
 #endif
 
 
@@ -276,7 +327,7 @@ const m_allocator *m_heap_allocator(void);
 //
 // prefer compile-time macros when available.
 //
-// M_IS_LITTLE_ENDIAN() and M_IS_BIG_ENDIAN() is a runtime version.
+// M_IS_LITTLE_ENDIAN() and M_IS_BIG_ENDIAN() is a runtime version. (can be compile time, depends)
 // M_IS_LITTLE_ENDIAN_CT and M_IS_BIG_ENDIAN_CT are compile-time and require M_HAS_COMPILE_TIME_ENDIAN == 1
 
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
@@ -311,6 +362,7 @@ static M_INLINE int m__is_big_endian_runtime(void)
 #   define M_IS_BIG_ENDIAN()    m__is_big_endian_runtime()
 
 #endif
+
 
 // ================================================
 //                  BYTE SWAP
