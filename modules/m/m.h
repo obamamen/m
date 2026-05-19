@@ -581,12 +581,18 @@ static M_INLINE m_i32 M_CTZ64(m_u64 x)
 #define M_IS_POW2(x)    (((x) & ((x) - 1)) == 0)
 
 // round x up to the next power of two.
-// returns 1 for x == 0; returns x if x is already a power of two.
-// result is undefined if x > 2^31 (32-bit) or x > 2^63 (64-bit).
+// returns 1 for x == 0.
+// returns x if x is already a power of two.
+// returns 0 if the result would overflow the 32-bit/64-bit range
+// (i.e. x > 2^31 for 32-bit, x > 2^63 for 64-bit).
 #define M_NEXT_POW2_32(x) \
-    (((m_u32)(x) <= 1u) ? 1u : (m_u32)1u << (32 - M_CLZ32((m_u32)(x) - 1u)))
+    (((m_u32)(x) <= 1u) ? 1u \
+    : (M_CLZ32((m_u32)(x) - 1u) == 0) ? 0u \
+    : (m_u32)1u << (32 - M_CLZ32((m_u32)(x) - 1u)))
 #define M_NEXT_POW2_64(x) \
-    (((m_u64)(x) <= 1ull) ? 1ull : (m_u64)1ull << (64 - M_CLZ64((m_u64)(x) - 1ull)))
+    (((m_u64)(x) <= 1ull) ? 1ull \
+    : (M_CLZ64((m_u64)(x) - 1ull) == 0) ? 0ull \
+    : (m_u64)1ull << (64 - M_CLZ64((m_u64)(x) - 1ull)))
 
 // round x up to the nearest multiple of align (align must be a power of two)
 #define M_ALIGN_UP(x, align)   (((x) + (align) - 1) & ~((align) - 1))

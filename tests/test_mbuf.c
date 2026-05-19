@@ -367,14 +367,11 @@ int main(void)
             {
     #if M_64_BIT
                 m_usize giant_request = ((m_usize)1 << 63) + 5;
-                m_usize expected_ceiling = (m_usize)1 << 63;
     #else
                 m_usize giant_request = ((m_usize)1 << 31) + 5;
-                m_usize expected_ceiling = (m_usize)1 << 31;
     #endif
-
                 m_usize result = mbuf_grow_pow2(0, giant_request);
-                MTEST_ASSERT(&t, result == expected_ceiling, "catches overflow and clamps to architecture bit boundary");
+                MTEST_ASSERT(&t, result == 0, "catches overflow and errors");
             }
         }
     }

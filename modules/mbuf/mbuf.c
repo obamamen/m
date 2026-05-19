@@ -188,8 +188,8 @@ m_usize mbuf_grow_pow2(m_usize cap, m_usize requested)
     new_cap = M_NEXT_POW2_64(new_cap);
 #elif M_32_BIT
     new_cap = M_NEXT_POW2_32(new_cap);
-#elif
-# error "Can't oblige grow contract"
+#else
+#   error "Can't oblige grow contract"
 #endif
 
     if (M_UNLIKELY(new_cap < requested))
